@@ -6,91 +6,140 @@
     <title>Top 100 EmpCode Leaderboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f8f9fa; padding: 20px; font-family: sans-serif; }
-        .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-top: 20px; max-width: 900px; }
-        .header-section { text-align: center; margin-bottom: 30px; }
-        .table thead { background-color: #0d6efd; color: white; }
+        body { 
+            background-color: #f0f2f5; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            padding-bottom: 50px;
+        }
+        .main-container { 
+            background: #ffffff; 
+            padding: 40px 30px; 
+            border-radius: 16px; 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05); 
+            margin-top: 40px; 
+            max-width: 900px; 
+        }
+        .header-section { 
+            background: linear-gradient(135deg, #0d6efd, #0dcaf0);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center; 
+            margin-bottom: 30px; 
+            box-shadow: 0 4px 10px rgba(13, 110, 253, 0.2);
+        }
+        .header-section h2 { font-weight: bold; margin-bottom: 5px; }
+        .header-section p { margin-bottom: 0; opacity: 0.9; }
+        
+        /* ตกแต่งตาราง */
+        .table-wrapper {
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(0,0,0,0.02);
+            border: 1px solid #e9ecef;
+        }
+        .table { margin-bottom: 0; }
+        .table thead { background-color: #f8f9fa; color: #495057; font-weight: bold; }
+        .table th { border-bottom-width: 2px; }
+        .table tbody tr:hover { background-color: #f1f4f9; transition: background-color 0.2s ease; }
+        .rank-badge {
+            background-color: #ffc107;
+            color: #000;
+            font-weight: bold;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .rank-normal {
+            background-color: #e9ecef;
+            color: #6c757d;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container main-container">
         <div class="header-section">
-            <h2>🏆 Top 100 EmpCode Leaderboard</h2>
-            <p class="text-muted">จัดอันดับผู้ที่มียอด StepCount รวมสูงสุด</p>
+            <h2>🏆 Top 100 StepCount</h2>
+            <p>ลีดเดอร์บอร์ดจัดอันดับผู้ที่มียอดเดินรวมสูงสุด</p>
         </div>
 
         <div id="loader" class="text-center my-5">
-            <div class="spinner-border text-primary" role="status">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
                 <span class="visually-hidden">Loading...</span>
             </div>
-            <p class="mt-2 text-muted">กำลังดึงข้อมูลและประมวลผล...</p>
+            <p class="mt-3 text-muted fw-bold">กำลังดึงข้อมูลและประมวลผล...</p>
         </div>
 
         <div id="error-message" class="alert alert-danger" style="display: none;"></div>
 
         <div id="content" style="display: none;">
-            <table class="table table-hover table-bordered">
-                <thead>
-                    <tr>
-                        <th class="text-center" style="width: 15%;">อันดับ</th>
-                        <th>รหัสพนักงาน (EmpCode)</th>
-                        <th class="text-end">ยอดรวมก้าว (Total StepCount)</th>
-                    </tr>
-                </thead>
-                <tbody id="table-body">
-                    </tbody>
-            </table>
+            
+            <div class="row mb-4 justify-content-end">
+                <div class="col-md-5">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white">🔍</span>
+                        <input type="text" id="searchInput" class="form-control" placeholder="ค้นหาด้วยรหัสพนักงาน (EmpCode)...">
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th class="text-center" style="width: 15%;">อันดับ</th>
+                            <th>รหัสพนักงาน (EmpCode)</th>
+                            <th class="text-end" style="width: 35%;">ยอดรวมก้าว (Total Steps)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        </tbody>
+                </table>
+            </div>
+            
+            <div id="no-result" class="text-center text-muted mt-4" style="display: none;">
+                <p>ไม่พบรหัสพนักงานที่ค้นหาใน 100 อันดับแรก</p>
+            </div>
         </div>
     </div>
 
     <script>
-        // 1. กำหนด URL ของ API
-        const apiUrl = 'https://www.servicesrx.com/apirunninghr/EmpStepData.asmx/GetAllData';
+        const apiUrl = 'http://www.servicesrx.com/apirunninghr/EmpStepData.asmx/GetAllData';
+        
+        // สร้างตัวแปรเก็บข้อมูล 100 อันดับแรกไว้ (เพื่อให้ค้นหาได้โดยไม่ต้องดึง API ใหม่)
+        let globalTop100Data = [];
 
-        // 2. ฟังก์ชันหลักสำหรับดึงและประมวลผลข้อมูล
         async function fetchAndProcessData() {
             try {
-                // ดึงข้อมูลผ่าน Network
+                // ดึงข้อมูล
                 const response = await fetch(apiUrl, {
                     method: 'GET',
-                    headers: {
-                        'Accept': 'text/xml, application/xml, */*'
-                    }
+                    headers: { 'Accept': 'text/xml, application/xml, */*' }
                 });
 
-                // ตรวจสอบว่าเชื่อมต่อสำเร็จหรือไม่
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
 
-                // แปลงผลลัพธ์ที่ได้เป็นตัวอักษร
                 const xmlText = await response.text();
-
-                // 3. ใช้ DOMParser เพื่อแปลงตัวอักษรเป็นโครงสร้าง XML
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(xmlText, "text/xml");
 
-                // ตรวจสอบ Error จากการแปลง XML
                 if (xmlDoc.getElementsByTagName("parsererror").length > 0) {
                     throw new Error("เกิดข้อผิดพลาดในการอ่านโครงสร้าง XML");
                 }
 
-                // 4. ค้นหาข้อมูล (รองรับการค้นหาแบบมี Namespace และไม่มี)
                 const records = xmlDoc.querySelectorAll('*|StepDataRecord, StepDataRecord');
-                
-                if (records.length === 0) {
-                    throw new Error("ไม่พบข้อมูล StepDataRecord ในระบบ");
-                }
+                if (records.length === 0) throw new Error("ไม่พบข้อมูล StepDataRecord ในระบบ");
 
-                // 5. รวมผลยอด StepCount ตาม EmpCode
+                // รวมยอด StepCount
                 const summaryMap = {};
-                
                 records.forEach(record => {
                     const empCodeNode = record.querySelector('*|EmpCode, EmpCode');
                     const stepCountNode = record.querySelector('*|StepCount, StepCount');
                     
-                    const empCode = empCodeNode ? empCodeNode.textContent : null;
-                    // แปลงข้อความเป็นตัวเลขฐาน 10
+                    const empCode = empCodeNode ? empCodeNode.textContent.trim() : null;
                     const stepCount = stepCountNode ? parseInt(stepCountNode.textContent, 10) : 0;
 
                     if (empCode) {
@@ -102,71 +151,83 @@
                     }
                 });
 
-                // 6. แปลง Object เป็น Array เพื่อให้เรียงลำดับได้
+                // แปลงและจัดเรียงข้อมูล
                 const sortedData = Object.keys(summaryMap).map(empCode => {
                     return { empCode: empCode, totalSteps: summaryMap[empCode] };
                 });
 
-                // เรียงจากมากไปน้อย (Descending)
                 sortedData.sort((a, b) => b.totalSteps - a.totalSteps);
                 
-                // เอาแค่ 100 อันดับแรก
-                const top100 = sortedData.slice(0, 100);
+                // เก็บข้อมูล Top 100 ไว้ในตัวแปร Global
+                globalTop100Data = sortedData.slice(0, 100);
 
-                // 7. ส่งข้อมูลไปวาดลงตาราง
-                renderTable(top100);
+                // นำไปแสดงผล
+                renderTable(globalTop100Data);
 
             } catch (error) {
-                // หากเกิดข้อผิดพลาด ให้แสดงแจ้งเตือน (พร้อมคำแนะนำเรื่อง CORS)
-                showError(`
-                    <strong>เกิดข้อผิดพลาด:</strong> ${error.message} <br><br>
-                    <small>
-                        💡 <strong>คำแนะนำ:</strong> หากข้อความ Error เกี่ยวข้องกับคำว่า "Failed to fetch" หรือแสดงผลไม่ออก อาจเป็นเพราะ <strong>CORS Policy</strong> เบราว์เซอร์ไม่อนุญาตให้ดึงข้อมูลข้ามโดเมน คุณอาจจะต้องตั้งค่าฝั่ง C# Backend เพื่อเพิ่ม Header: <code>Access-Control-Allow-Origin: *</code>
-                    </small>
-                `);
+                showError(`<strong>เกิดข้อผิดพลาด:</strong> ${error.message}`);
             }
         }
 
-        // 8. ฟังก์ชันสำหรับวาดข้อมูลลงในตาราง HTML
+        // ฟังก์ชันวาดตาราง (รับข้อมูลที่กรองแล้วมาแสดง)
         function renderTable(data) {
             const tableBody = document.getElementById('table-body');
             const loader = document.getElementById('loader');
             const content = document.getElementById('content');
+            const noResult = document.getElementById('no-result');
 
-            tableBody.innerHTML = ''; // ล้างข้อมูลเก่าออกก่อน
+            tableBody.innerHTML = ''; 
 
             if (data.length > 0) {
+                noResult.style.display = 'none';
                 data.forEach((item, index) => {
+                    // หากเป็น 3 อันดับแรก จะให้ป้ายอันดับเป็นสีทอง นอกนั้นเป็นสีเทา
+                    // ข้อสังเกต: เวลาค้นหา index จะเริ่มใหม่ เราต้องการให้อันดับยังคงเป็นอันดับที่แท้จริง
+                    // จึงต้องไปหา Index จริงจาก globalTop100Data
+                    const realRank = globalTop100Data.findIndex(x => x.empCode === item.empCode) + 1;
+                    const badgeClass = realRank <= 3 ? 'rank-badge' : 'rank-badge rank-normal';
+
                     const rowHTML = `
                         <tr>
-                            <td class="text-center">${index + 1}</td>
-                            <td><strong>${item.empCode}</strong></td>
-                            <td class="text-end">${item.totalSteps.toLocaleString()}</td>
+                            <td class="text-center">
+                                <span class="${badgeClass}">${realRank}</span>
+                            </td>
+                            <td class="align-middle fw-bold text-primary">${item.empCode}</td>
+                            <td class="text-end align-middle fw-semibold">${item.totalSteps.toLocaleString()}</td>
                         </tr>
                     `;
-                    // ใส่ข้อมูลต่อท้ายไปเรื่อยๆ
                     tableBody.insertAdjacentHTML('beforeend', rowHTML);
                 });
             } else {
-                tableBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">ไม่มีข้อมูลที่จะแสดง</td></tr>';
+                noResult.style.display = 'block';
             }
 
-            // ซ่อนที่หมุนๆ และโชว์ตาราง
             loader.style.display = 'none';
             content.style.display = 'block';
         }
 
-        // 9. ฟังก์ชันสำหรับแสดงกล่อง Error
         function showError(messageHtml) {
             const loader = document.getElementById('loader');
             const errorDiv = document.getElementById('error-message');
-            
             loader.style.display = 'none';
             errorDiv.innerHTML = messageHtml;
             errorDiv.style.display = 'block';
         }
 
-        // 10. สั่งให้ทำงานเมื่อหน้าเว็บโหลดโครงสร้างเสร็จแล้ว
+        // --- ระบบค้นหา (Search) ---
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const keyword = e.target.value.trim().toLowerCase();
+            
+            // กรองข้อมูลจาก Array สู่ Array ใหม่
+            const filteredData = globalTop100Data.filter(item => {
+                return item.empCode.toLowerCase().includes(keyword);
+            });
+
+            // สั่งให้วาดตารางใหม่ด้วยข้อมูลที่กรองแล้ว
+            renderTable(filteredData);
+        });
+
+        // สั่งให้ทำงานเมื่อเปิดเว็บ
         window.addEventListener('DOMContentLoaded', fetchAndProcessData);
     </script>
 </body>
